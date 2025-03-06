@@ -270,4 +270,71 @@ h2 {
         border-bottom: 7px solid transparent;
         border-left: 12px solid white;
     }
+    
+    .dir-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    
+    .horizontal-buttons {
+        gap: 15px;
+    }
+    
+    #mobile-controls {
+        margin-top: 10px;
+    }
+}
+
+#mobile-controls {
+    display: none; /* Hidden by default, shown only on mobile */
+    width: 100%;
+    max-width: 300px;
+    margin: 15px auto 0;
+}
+
+.direction-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.horizontal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+}
+
+.dir-btn {
+    width: 60px;
+    height: 60px;
+    background-color: rgba(30, 30, 30, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: background-color 0.2s;
+}
+
+.dir-btn:hover, .dir-btn:active {
+    background-color: rgba(76, 175, 80, 0.8);
+}
+
+/* Show mobile controls only on mobile devices */
+@media (max-width: 480px) {
+    #mobile-controls {
+        display: block;
+    }
+    
+    /* Hide the touch controls overlay in the canvas */
+    .touch-controls-overlay {
+        display: none;
+    }
 } 

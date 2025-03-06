@@ -55,6 +55,51 @@ function setup() {
   
   // Add click event listener to external pause button
   externalPauseBtn.addEventListener('click', togglePause);
+  
+  // Initialize mobile direction buttons
+  setupMobileControls();
+}
+
+// Function to set up mobile direction buttons
+function setupMobileControls() {
+  // Get direction buttons
+  const btnUp = document.getElementById('btn-up');
+  const btnDown = document.getElementById('btn-down');
+  const btnLeft = document.getElementById('btn-left');
+  const btnRight = document.getElementById('btn-right');
+  
+  // Add event listeners for direction buttons
+  if (btnUp) {
+    btnUp.addEventListener('click', () => {
+      if (gameState === GAME_STATE.PLAYING && playerDirection.y !== 1) {
+        nextPlayerDirection = { x: 0, y: -1 };
+      }
+    });
+  }
+  
+  if (btnDown) {
+    btnDown.addEventListener('click', () => {
+      if (gameState === GAME_STATE.PLAYING && playerDirection.y !== -1) {
+        nextPlayerDirection = { x: 0, y: 1 };
+      }
+    });
+  }
+  
+  if (btnLeft) {
+    btnLeft.addEventListener('click', () => {
+      if (gameState === GAME_STATE.PLAYING && playerDirection.x !== 1) {
+        nextPlayerDirection = { x: -1, y: 0 };
+      }
+    });
+  }
+  
+  if (btnRight) {
+    btnRight.addEventListener('click', () => {
+      if (gameState === GAME_STATE.PLAYING && playerDirection.x !== -1) {
+        nextPlayerDirection = { x: 1, y: 0 };
+      }
+    });
+  }
 }
 
 // Function to toggle pause state
@@ -1099,8 +1144,9 @@ function drawSettings() {
 
 // Add touch controls for mobile devices
 function touchStarted() {
-  // Only handle touch controls during gameplay
-  if (gameState === GAME_STATE.PLAYING && snakes[0] && snakes[0].alive) {
+  // We'll use the mobile direction buttons instead of this touch detection
+  // on mobile devices, but keep this for tablets or other devices
+  if (!isMobileDevice() && gameState === GAME_STATE.PLAYING && snakes[0] && snakes[0].alive) {
     // Get the touch position relative to the canvas
     const touchX = touches[0].x / canvasScale;
     const touchY = touches[0].y / canvasScale;
@@ -1149,11 +1195,15 @@ function touchMoved() {
 
 // Function to check if the device is mobile
 function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth <= 768;
+  // Consider phones as mobile devices, but not tablets
+  return /Android|webOS|iPhone|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth <= 480;
 }
 
 // Function to draw touch controls
 function drawTouchControls() {
+  // Don't draw touch controls on phones (we have physical buttons for those)
+  if (windowWidth <= 480) return;
+  
   // Semi-transparent overlay
   noStroke();
   fill(255, 255, 255, 20);
