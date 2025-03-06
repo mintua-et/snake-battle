@@ -14,7 +14,9 @@ A visually appealing snake game where you control one snake while competing agai
 - Start menu, pause menu, and game over screen
 - Victory screen announcing the winner
 - Visually appealing graphics with p5.js
-- Real-time scoreboard
+- Real-time scoreboard displayed in the top-left corner
+- Fully responsive design that works on desktop and mobile devices
+- Touch controls for mobile gameplay
 - Grid-based gameplay
 - Collision detection (walls, other snakes)
 - Food spawning system
@@ -26,7 +28,7 @@ A visually appealing snake game where you control one snake while competing agai
 2. Open `index.html` in your web browser
 3. Optionally adjust the win score in the Settings menu
 4. Click "Start Game" or press Space to begin
-5. Control your snake (red) with the arrow keys
+5. Control your snake (red) with the arrow keys (desktop) or touch controls (mobile)
 6. Press Space or click the pause button to pause/resume the game
 7. Try to eat as much food as possible while avoiding collisions
 8. If you die, you'll respawn with 0 points as long as the AI hasn't won yet
@@ -34,15 +36,21 @@ A visually appealing snake game where you control one snake while competing agai
 
 ## Game Controls
 
+### Desktop
 - **Arrow Keys**: Control your snake's direction
 - **Space Bar**: Start game / Pause / Resume
 - **Pause Button**: Click the button at the top right to pause/resume
 - **Settings**: Configure game options like win score
 - **Mouse**: Click buttons in menus
 
+### Mobile
+- **Touch Controls**: Tap in the direction you want to move
+- **Pause Button**: Tap the button at the top right to pause/resume
+- **Touch Interface**: Tap buttons in menus
+
 ## Game Rules
 
-- You control the red snake with arrow keys
+- You control the red snake with arrow keys or touch
 - The blue snake moves automatically using AI algorithms
 - Both snakes try to find the nearest food while avoiding walls and each other
 - When a snake eats food, it grows longer and earns a point
@@ -58,6 +66,7 @@ A visually appealing snake game where you control one snake while competing agai
 - CSS3
 - JavaScript
 - p5.js library
+- Responsive design for cross-device compatibility
 
 ## Customization
 

@@ -12,8 +12,7 @@ const config = {
   ],
   foodColor: [76, 175, 80], // Green
   backgroundColor: [18, 18, 18],
-  pauseButtonSize: 40,
-  winScore: 25      // Changed from 50 to 25 points needed to win
+  winScore: 25      // Points needed to win the game
 };
 
 // Game states
@@ -34,17 +33,87 @@ let gameState = GAME_STATE.MENU;
 let playerDirection = { x: 1, y: 0 };
 let nextPlayerDirection = { x: 1, y: 0 };
 let selectedWinScore = 25; // Default win score that can be changed by the user
+let canvasScale = 1; // Scale factor for responsive canvas
+let externalPauseBtn; // Reference to the external pause button
+let pauseIcon; // Reference to the pause icon
+let playIcon; // Reference to the play icon
 
 function setup() {
-  // Create canvas and place it in the canvas-container
-  const canvas = createCanvas(config.canvasWidth, config.canvasHeight);
-  canvas.parent('canvas-container');
+  // Create a responsive canvas
+  createResponsiveCanvas();
   
   // Set frame rate
   frameRate(config.frameRate);
   
   // Initialize game
   initGame();
+  
+  // Initialize external pause button
+  externalPauseBtn = document.getElementById('external-pause-btn');
+  pauseIcon = document.getElementById('pause-icon');
+  playIcon = document.getElementById('play-icon');
+  
+  // Add click event listener to external pause button
+  externalPauseBtn.addEventListener('click', togglePause);
+}
+
+// Function to toggle pause state
+function togglePause() {
+  if (gameState === GAME_STATE.PLAYING) {
+    gameState = GAME_STATE.PAUSED;
+    pauseIcon.style.display = 'none';
+    playIcon.style.display = 'block';
+  } else if (gameState === GAME_STATE.PAUSED) {
+    gameState = GAME_STATE.PLAYING;
+    pauseIcon.style.display = 'flex';
+    playIcon.style.display = 'none';
+  }
+}
+
+// Function to create a responsive canvas
+function createResponsiveCanvas() {
+  // Get the canvas container
+  const container = document.getElementById('canvas-container');
+  const controlsBar = document.querySelector('.controls-bar');
+  
+  // Calculate the available width (with some margin)
+  let availableWidth = min(windowWidth - 40, config.canvasWidth);
+  
+  // Calculate the available height (70vh)
+  let availableHeight = windowHeight * 0.7;
+  
+  // Calculate scale factors for both dimensions
+  const widthScale = availableWidth / config.canvasWidth;
+  const heightScale = availableHeight / config.canvasHeight;
+  
+  // Use the smaller scale factor to ensure the canvas fits within both constraints
+  canvasScale = min(widthScale, heightScale);
+  
+  // Create the canvas with the original dimensions
+  const canvas = createCanvas(config.canvasWidth, config.canvasHeight);
+  canvas.parent('canvas-container');
+  
+  // Apply scaling to the container
+  const scaledWidth = `${config.canvasWidth * canvasScale}px`;
+  const scaledHeight = `${config.canvasHeight * canvasScale}px`;
+  container.style.width = scaledWidth;
+  container.style.height = scaledHeight;
+  container.style.overflow = 'hidden';
+  
+  // Set the controls bar width to match the canvas
+  if (controlsBar) {
+    controlsBar.style.width = scaledWidth;
+    controlsBar.style.maxWidth = scaledWidth;
+  }
+  
+  // Scale the canvas using CSS transform
+  canvas.elt.style.transform = `scale(${canvasScale})`;
+  canvas.elt.style.transformOrigin = 'top left';
+}
+
+// Handle window resize
+function windowResized() {
+  createResponsiveCanvas();
 }
 
 function draw() {
@@ -71,17 +140,16 @@ function draw() {
       // Update scoreboard
       updateScoreboard();
       
-      // Draw pause button
-      drawPauseButton();
+      // Draw touch controls on mobile devices
+      if (isMobileDevice()) {
+        drawTouchControls();
+      }
       break;
     case GAME_STATE.PAUSED:
       // Draw food and snakes in their current state
       drawFood();
       drawSnakes();
       drawPauseMenu();
-      
-      // Draw pause button (in play state)
-      drawPauseButton(true);
       break;
     case GAME_STATE.GAME_OVER:
       // Draw food and snakes in their current state
@@ -118,8 +186,12 @@ function keyPressed() {
       startGame();
     } else if (gameState === GAME_STATE.PLAYING) {
       gameState = GAME_STATE.PAUSED;
+      pauseIcon.style.display = 'none';
+      playIcon.style.display = 'block';
     } else if (gameState === GAME_STATE.PAUSED) {
       gameState = GAME_STATE.PLAYING;
+      pauseIcon.style.display = 'flex';
+      playIcon.style.display = 'none';
     } else if (gameState === GAME_STATE.SETTINGS) {
       gameState = GAME_STATE.MENU;
     } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN) {
@@ -144,47 +216,36 @@ function keyPressed() {
 }
 
 function mousePressed() {
-  // Check if pause button is clicked
-  if ((gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.PAUSED)) {
-    const x = config.canvasWidth - config.pauseButtonSize - 10;
-    const y = 10;
-    const size = config.pauseButtonSize;
-    
-    if (mouseX >= x && mouseX <= x + size && mouseY >= y && mouseY <= y + size) {
-      if (gameState === GAME_STATE.PLAYING) {
-        gameState = GAME_STATE.PAUSED;
-      } else {
-        gameState = GAME_STATE.PLAYING;
-      }
-      return; // Don't process other clicks if pause button was clicked
-    }
-  }
+  // Adjust mouse coordinates for canvas scaling
+  const scaledMouseX = mouseX / canvasScale;
+  const scaledMouseY = mouseY / canvasScale;
   
   // Handle button clicks in menus
   if (gameState === GAME_STATE.MENU) {
     const buttonWidth = 200;
     const buttonHeight = 60;
+    const buttonY = config.canvasHeight / 2 + 30;
     
     // Check if start button is clicked
     const startButtonX = config.canvasWidth / 2;
-    const startButtonY = config.canvasHeight / 2;
+    const startButtonY = buttonY;
     
-    if (mouseX >= startButtonX - buttonWidth/2 && 
-        mouseX <= startButtonX + buttonWidth/2 && 
-        mouseY >= startButtonY - buttonHeight/2 && 
-        mouseY <= startButtonY + buttonHeight/2) {
+    if (scaledMouseX >= startButtonX - buttonWidth/2 && 
+        scaledMouseX <= startButtonX + buttonWidth/2 && 
+        scaledMouseY >= startButtonY - buttonHeight/2 && 
+        scaledMouseY <= startButtonY + buttonHeight/2) {
       startGame();
       return;
     }
     
     // Check if settings button is clicked
     const settingsButtonX = config.canvasWidth / 2;
-    const settingsButtonY = config.canvasHeight / 2 + 80;
+    const settingsButtonY = buttonY + 80;
     
-    if (mouseX >= settingsButtonX - buttonWidth/2 && 
-        mouseX <= settingsButtonX + buttonWidth/2 && 
-        mouseY >= settingsButtonY - buttonHeight/2 && 
-        mouseY <= settingsButtonY + buttonHeight/2) {
+    if (scaledMouseX >= settingsButtonX - buttonWidth/2 && 
+        scaledMouseX <= settingsButtonX + buttonWidth/2 && 
+        scaledMouseY >= settingsButtonY - buttonHeight/2 && 
+        scaledMouseY <= settingsButtonY + buttonHeight/2) {
       gameState = GAME_STATE.SETTINGS;
       return;
     }
@@ -202,8 +263,8 @@ function mousePressed() {
       const score = scoreOptions[i];
       const x = startX + i * (buttonWidth + buttonSpacing);
       
-      if (mouseX >= x && mouseX <= x + buttonWidth && 
-          mouseY >= y - 20 && mouseY <= y + 20) {
+      if (scaledMouseX >= x && scaledMouseX <= x + buttonWidth && 
+          scaledMouseY >= y - 20 && scaledMouseY <= y + 20) {
         selectedWinScore = score;
         // Update the config win score
         config.winScore = selectedWinScore;
@@ -217,10 +278,10 @@ function mousePressed() {
     const buttonWidth2 = 200;
     const buttonHeight2 = 60;
     
-    if (mouseX >= backButtonX - buttonWidth2/2 && 
-        mouseX <= backButtonX + buttonWidth2/2 && 
-        mouseY >= backButtonY - buttonHeight2/2 && 
-        mouseY <= backButtonY + buttonHeight2/2) {
+    if (scaledMouseX >= backButtonX - buttonWidth2/2 && 
+        scaledMouseX <= backButtonX + buttonWidth2/2 && 
+        scaledMouseY >= backButtonY - buttonHeight2/2 && 
+        scaledMouseY <= backButtonY + buttonHeight2/2) {
       gameState = GAME_STATE.MENU;
       return;
     }
@@ -231,10 +292,10 @@ function mousePressed() {
     const buttonWidth = 200;
     const buttonHeight = 60;
     
-    if (mouseX >= resumeButtonX - buttonWidth/2 && 
-        mouseX <= resumeButtonX + buttonWidth/2 && 
-        mouseY >= resumeButtonY - buttonHeight/2 && 
-        mouseY <= resumeButtonY + buttonHeight/2) {
+    if (scaledMouseX >= resumeButtonX - buttonWidth/2 && 
+        scaledMouseX <= resumeButtonX + buttonWidth/2 && 
+        scaledMouseY >= resumeButtonY - buttonHeight/2 && 
+        scaledMouseY <= resumeButtonY + buttonHeight/2) {
       gameState = GAME_STATE.PLAYING;
     }
     
@@ -242,10 +303,10 @@ function mousePressed() {
     const menuButtonX = config.canvasWidth / 2;
     const menuButtonY = config.canvasHeight / 2 + 80;
     
-    if (mouseX >= menuButtonX - buttonWidth/2 && 
-        mouseX <= menuButtonX + buttonWidth/2 && 
-        mouseY >= menuButtonY - buttonHeight/2 && 
-        mouseY <= menuButtonY + buttonHeight/2) {
+    if (scaledMouseX >= menuButtonX - buttonWidth/2 && 
+        scaledMouseX <= menuButtonX + buttonWidth/2 && 
+        scaledMouseY >= menuButtonY - buttonHeight/2 && 
+        scaledMouseY <= menuButtonY + buttonHeight/2) {
       initGame();
       gameState = GAME_STATE.MENU;
     }
@@ -256,10 +317,10 @@ function mousePressed() {
     const buttonWidth = 200;
     const buttonHeight = 60;
     
-    if (mouseX >= restartButtonX - buttonWidth/2 && 
-        mouseX <= restartButtonX + buttonWidth/2 && 
-        mouseY >= restartButtonY - buttonHeight/2 && 
-        mouseY <= restartButtonY + buttonHeight/2) {
+    if (scaledMouseX >= restartButtonX - buttonWidth/2 && 
+        scaledMouseX <= restartButtonX + buttonWidth/2 && 
+        scaledMouseY >= restartButtonY - buttonHeight/2 && 
+        scaledMouseY <= restartButtonY + buttonHeight/2) {
       startGame();
     }
     
@@ -267,10 +328,10 @@ function mousePressed() {
     const menuButtonX = config.canvasWidth / 2;
     const menuButtonY = config.canvasHeight / 2 + 130;
     
-    if (mouseX >= menuButtonX - buttonWidth/2 && 
-        mouseX <= menuButtonX + buttonWidth/2 && 
-        mouseY >= menuButtonY - buttonHeight/2 && 
-        mouseY <= menuButtonY + buttonHeight/2) {
+    if (scaledMouseX >= menuButtonX - buttonWidth/2 && 
+        scaledMouseX <= menuButtonX + buttonWidth/2 && 
+        scaledMouseY >= menuButtonY - buttonHeight/2 && 
+        scaledMouseY <= menuButtonY + buttonHeight/2) {
       initGame();
       gameState = GAME_STATE.MENU;
     }
@@ -280,6 +341,12 @@ function mousePressed() {
 function startGame() {
   initGame();
   gameState = GAME_STATE.PLAYING;
+  
+  // Reset pause button state
+  if (pauseIcon && playIcon) {
+    pauseIcon.style.display = 'flex';
+    playIcon.style.display = 'none';
+  }
 }
 
 function initGame() {
@@ -720,16 +787,19 @@ function drawMenu() {
   textSize(18);
   text("Compete against the blue AI snake", config.canvasWidth / 2, config.canvasHeight / 4 + 85);
   
+  // Add more space before the start button
+  const buttonY = config.canvasHeight / 2 + 30;
+  
   // Draw start button
-  drawButton("Start Game", config.canvasWidth / 2, config.canvasHeight / 2, 200, 60);
+  drawButton("Start Game", config.canvasWidth / 2, buttonY, 200, 60);
   
   // Draw settings button
-  drawButton("Settings", config.canvasWidth / 2, config.canvasHeight / 2 + 80, 200, 60);
+  drawButton("Settings", config.canvasWidth / 2, buttonY + 80, 200, 60);
   
   // Draw win score info
   textSize(16);
   fill(76, 175, 80); // Green color for emphasis
-  text(`First to reach ${selectedWinScore} points wins!`, config.canvasWidth / 2, config.canvasHeight / 2 + 150);
+  text(`First to reach ${selectedWinScore} points wins!`, config.canvasWidth / 2, buttonY + 150);
   
   // Draw controls info
   fill(255); // Reset to white
@@ -801,6 +871,7 @@ function drawButton(label, x, y, width, height) {
 }
 
 function initScoreboard() {
+  // Initialize main scoreboard (hidden but kept for compatibility)
   const scoresList = document.getElementById('scores');
   scoresList.innerHTML = '';
   
@@ -810,61 +881,56 @@ function initScoreboard() {
     li.textContent = i === 0 ? `You: 0` : `Snake ${i}: 0`;
     scoresList.appendChild(li);
   }
+  
+  // Initialize top-left scoreboard
+  const topScoresList = document.getElementById('top-scores-list');
+  topScoresList.innerHTML = '';
+  
+  for (let i = 0; i < config.snakeCount; i++) {
+    const li = document.createElement('li');
+    li.className = `snake-${i}`;
+    // Use shorter labels for the horizontal layout
+    li.textContent = i === 0 ? `You: 0` : `AI: 0`;
+    topScoresList.appendChild(li);
+  }
 }
 
 function updateScoreboard() {
+  // Update main scoreboard
   const scoresList = document.getElementById('scores');
   const items = scoresList.getElementsByTagName('li');
   
+  // Update top-left scoreboard
+  const topScoresList = document.getElementById('top-scores-list');
+  const topItems = topScoresList.getElementsByTagName('li');
+  
   for (let i = 0; i < config.snakeCount; i++) {
-    items[i].textContent = i === 0 ? `You: ${scores[i]}` : `Snake ${i}: ${scores[i]}`;
-    
-    // Add visual indicator if snake is dead
-    if (!snakes[i].alive) {
-      items[i].textContent += ' (Dead)';
-      items[i].style.opacity = '0.5';
-    } else {
-      items[i].style.opacity = '1';
+    // Update main scoreboard items
+    if (items[i]) {
+      items[i].textContent = i === 0 ? `You: ${scores[i]}` : `Snake ${i}: ${scores[i]}`;
+      
+      // Add visual indicator if snake is dead
+      if (!snakes[i].alive) {
+        items[i].textContent += ' (Dead)';
+        items[i].style.opacity = '0.5';
+      } else {
+        items[i].style.opacity = '1';
+      }
     }
-  }
-}
-
-// Function to draw the pause button
-function drawPauseButton(isPlaying = false) {
-  // Position at top right with some margin
-  const x = config.canvasWidth - config.pauseButtonSize - 10;
-  const y = 10;
-  const size = config.pauseButtonSize;
-  
-  // Check if mouse is over button
-  const isHovered = mouseX >= x && mouseX <= x + size && 
-                    mouseY >= y && mouseY <= y + size;
-  
-  // Button background
-  if (isHovered) {
-    fill(76, 175, 80, 220); // Green when hovered
-  } else {
-    fill(50, 120, 50, 180); // Darker green normally
-  }
-  
-  // Draw button background
-  noStroke();
-  rect(x, y, size, size, 5);
-  
-  // Draw pause/play icon
-  stroke(255);
-  strokeWeight(2);
-  if (isPlaying) { // Draw play triangle
-    fill(255);
-    triangle(
-      x + size * 0.3, y + size * 0.25,
-      x + size * 0.3, y + size * 0.75,
-      x + size * 0.75, y + size * 0.5
-    );
-  } else { // Draw pause bars
-    fill(255);
-    rect(x + size * 0.3, y + size * 0.25, size * 0.15, size * 0.5, 2);
-    rect(x + size * 0.55, y + size * 0.25, size * 0.15, size * 0.5, 2);
+    
+    // Update top-left scoreboard items
+    if (topItems[i]) {
+      // Use more concise format for the horizontal layout
+      topItems[i].textContent = i === 0 ? `You: ${scores[i]}` : `AI: ${scores[i]}`;
+      
+      // Add visual indicator if snake is dead
+      if (!snakes[i].alive) {
+        topItems[i].textContent += ' †'; // Even more concise death indicator
+        topItems[i].style.opacity = '0.5';
+      } else {
+        topItems[i].style.opacity = '1';
+      }
+    }
   }
 }
 
@@ -1029,4 +1095,98 @@ function drawSettings() {
   
   // Draw back button
   drawButton("Back to Menu", config.canvasWidth / 2, config.canvasHeight / 2 + 100, 200, 60);
+}
+
+// Add touch controls for mobile devices
+function touchStarted() {
+  // Only handle touch controls during gameplay
+  if (gameState === GAME_STATE.PLAYING && snakes[0] && snakes[0].alive) {
+    // Get the touch position relative to the canvas
+    const touchX = touches[0].x / canvasScale;
+    const touchY = touches[0].y / canvasScale;
+    
+    // Get the current head position
+    const head = snakes[0].body[0];
+    
+    // Calculate the center of the canvas
+    const centerX = config.canvasWidth / 2;
+    const centerY = config.canvasHeight / 2;
+    
+    // Calculate the direction from the center to the touch
+    const dx = touchX - centerX;
+    const dy = touchY - centerY;
+    
+    // Determine the dominant direction (horizontal or vertical)
+    if (abs(dx) > abs(dy)) {
+      // Horizontal movement
+      if (dx > 0 && playerDirection.x !== -1) {
+        // Right
+        nextPlayerDirection = { x: 1, y: 0 };
+      } else if (dx < 0 && playerDirection.x !== 1) {
+        // Left
+        nextPlayerDirection = { x: -1, y: 0 };
+      }
+    } else {
+      // Vertical movement
+      if (dy > 0 && playerDirection.y !== -1) {
+        // Down
+        nextPlayerDirection = { x: 0, y: 1 };
+      } else if (dy < 0 && playerDirection.y !== 1) {
+        // Up
+        nextPlayerDirection = { x: 0, y: -1 };
+      }
+    }
+  }
+  
+  // Prevent default behavior
+  return false;
+}
+
+// Alias touchStarted to touchMoved for continuous control
+function touchMoved() {
+  return touchStarted();
+}
+
+// Function to check if the device is mobile
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || windowWidth <= 768;
+}
+
+// Function to draw touch controls
+function drawTouchControls() {
+  // Semi-transparent overlay
+  noStroke();
+  fill(255, 255, 255, 20);
+  
+  // Draw directional arrows
+  const arrowSize = 40;
+  const margin = 20;
+  
+  // Up arrow
+  triangle(
+    config.canvasWidth - arrowSize * 2 - margin, config.canvasHeight - arrowSize * 3 - margin,
+    config.canvasWidth - arrowSize * 2.5 - margin, config.canvasHeight - arrowSize * 3.5 - margin,
+    config.canvasWidth - arrowSize * 1.5 - margin, config.canvasHeight - arrowSize * 3.5 - margin
+  );
+  
+  // Down arrow
+  triangle(
+    config.canvasWidth - arrowSize * 2 - margin, config.canvasHeight - arrowSize - margin,
+    config.canvasWidth - arrowSize * 2.5 - margin, config.canvasHeight - arrowSize * 0.5 - margin,
+    config.canvasWidth - arrowSize * 1.5 - margin, config.canvasHeight - arrowSize * 0.5 - margin
+  );
+  
+  // Left arrow
+  triangle(
+    config.canvasWidth - arrowSize * 3 - margin, config.canvasHeight - arrowSize * 2 - margin,
+    config.canvasWidth - arrowSize * 3.5 - margin, config.canvasHeight - arrowSize * 2.5 - margin,
+    config.canvasWidth - arrowSize * 3.5 - margin, config.canvasHeight - arrowSize * 1.5 - margin
+  );
+  
+  // Right arrow
+  triangle(
+    config.canvasWidth - arrowSize - margin, config.canvasHeight - arrowSize * 2 - margin,
+    config.canvasWidth - arrowSize * 0.5 - margin, config.canvasHeight - arrowSize * 2.5 - margin,
+    config.canvasWidth - arrowSize * 0.5 - margin, config.canvasHeight - arrowSize * 1.5 - margin
+  );
 } 
