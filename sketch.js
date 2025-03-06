@@ -60,7 +60,7 @@ function setup() {
   setupMobileControls();
 }
 
-// Function to set up mobile direction buttons
+// Function to set up mobile controls
 function setupMobileControls() {
   // Get direction buttons
   const btnUp = document.getElementById('btn-up');
@@ -68,38 +68,55 @@ function setupMobileControls() {
   const btnLeft = document.getElementById('btn-left');
   const btnRight = document.getElementById('btn-right');
   
-  // Add event listeners for direction buttons
-  if (btnUp) {
-    btnUp.addEventListener('click', () => {
-      if (gameState === GAME_STATE.PLAYING && playerDirection.y !== 1) {
-        nextPlayerDirection = { x: 0, y: -1 };
-      }
-    });
-  }
+  // Helper function to handle both click and touch events
+  const addButtonEvents = (button, directionFunction) => {
+    if (button) {
+      // Add click event
+      button.addEventListener('click', directionFunction);
+      
+      // Add touch events
+      button.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent default touch behavior
+        directionFunction();
+      });
+      
+      // Prevent default behavior for all touch events
+      button.addEventListener('touchend', (e) => e.preventDefault());
+      button.addEventListener('touchmove', (e) => e.preventDefault());
+      button.addEventListener('touchcancel', (e) => e.preventDefault());
+    }
+  };
   
-  if (btnDown) {
-    btnDown.addEventListener('click', () => {
-      if (gameState === GAME_STATE.PLAYING && playerDirection.y !== -1) {
-        nextPlayerDirection = { x: 0, y: 1 };
-      }
-    });
-  }
+  // Define direction functions
+  const goUp = () => {
+    if (gameState === GAME_STATE.PLAYING && playerDirection.y !== 1) {
+      nextPlayerDirection = { x: 0, y: -1 };
+    }
+  };
   
-  if (btnLeft) {
-    btnLeft.addEventListener('click', () => {
-      if (gameState === GAME_STATE.PLAYING && playerDirection.x !== 1) {
-        nextPlayerDirection = { x: -1, y: 0 };
-      }
-    });
-  }
+  const goDown = () => {
+    if (gameState === GAME_STATE.PLAYING && playerDirection.y !== -1) {
+      nextPlayerDirection = { x: 0, y: 1 };
+    }
+  };
   
-  if (btnRight) {
-    btnRight.addEventListener('click', () => {
-      if (gameState === GAME_STATE.PLAYING && playerDirection.x !== -1) {
-        nextPlayerDirection = { x: 1, y: 0 };
-      }
-    });
-  }
+  const goLeft = () => {
+    if (gameState === GAME_STATE.PLAYING && playerDirection.x !== 1) {
+      nextPlayerDirection = { x: -1, y: 0 };
+    }
+  };
+  
+  const goRight = () => {
+    if (gameState === GAME_STATE.PLAYING && playerDirection.x !== -1) {
+      nextPlayerDirection = { x: 1, y: 0 };
+    }
+  };
+  
+  // Add events to buttons
+  addButtonEvents(btnUp, goUp);
+  addButtonEvents(btnDown, goDown);
+  addButtonEvents(btnLeft, goLeft);
+  addButtonEvents(btnRight, goRight);
 }
 
 // Function to toggle pause state
@@ -1146,7 +1163,7 @@ function drawSettings() {
 function touchStarted() {
   // We'll use the mobile direction buttons instead of this touch detection
   // on mobile devices, but keep this for tablets or other devices
-  if (!isMobileDevice() && gameState === GAME_STATE.PLAYING && snakes[0] && snakes[0].alive) {
+  if (!isMobileDevice() && gameState === GAME_STATE.PLAYING && snakes[0] && snakes[0].alive && touches.length > 0) {
     // Get the touch position relative to the canvas
     const touchX = touches[0].x / canvasScale;
     const touchY = touches[0].y / canvasScale;
@@ -1190,7 +1207,8 @@ function touchStarted() {
 
 // Alias touchStarted to touchMoved for continuous control
 function touchMoved() {
-  return touchStarted();
+  // Prevent default behavior
+  return false;
 }
 
 // Function to check if the device is mobile
