@@ -13,7 +13,7 @@ const config = {
   foodColor: [76, 175, 80], // Green
   backgroundColor: [18, 18, 18],
   pauseButtonSize: 40,
-  winScore: 50      // Points needed to win the game
+  winScore: 25      // Changed from 50 to 25 points needed to win
 };
 
 // Game states
@@ -22,7 +22,8 @@ const GAME_STATE = {
   PLAYING: 'playing',
   PAUSED: 'paused',
   GAME_OVER: 'game_over',
-  WIN: 'win'
+  WIN: 'win',
+  SETTINGS: 'settings'
 };
 
 // Game state
@@ -32,6 +33,7 @@ let scores = [];
 let gameState = GAME_STATE.MENU;
 let playerDirection = { x: 1, y: 0 };
 let nextPlayerDirection = { x: 1, y: 0 };
+let selectedWinScore = 25; // Default win score that can be changed by the user
 
 function setup() {
   // Create canvas and place it in the canvas-container
@@ -54,6 +56,9 @@ function draw() {
   switch (gameState) {
     case GAME_STATE.MENU:
       drawMenu();
+      break;
+    case GAME_STATE.SETTINGS:
+      drawSettings();
       break;
     case GAME_STATE.PLAYING:
       // Update and draw food
@@ -115,8 +120,17 @@ function keyPressed() {
       gameState = GAME_STATE.PAUSED;
     } else if (gameState === GAME_STATE.PAUSED) {
       gameState = GAME_STATE.PLAYING;
+    } else if (gameState === GAME_STATE.SETTINGS) {
+      gameState = GAME_STATE.MENU;
     } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN) {
       initGame();
+      gameState = GAME_STATE.MENU;
+    }
+  }
+  
+  // Handle escape key to go back to menu
+  if (keyCode === 27) { // ESC key
+    if (gameState === GAME_STATE.SETTINGS) {
       gameState = GAME_STATE.MENU;
     }
   }
@@ -148,17 +162,67 @@ function mousePressed() {
   
   // Handle button clicks in menus
   if (gameState === GAME_STATE.MENU) {
-    // Check if start button is clicked
-    const startButtonX = config.canvasWidth / 2;
-    const startButtonY = config.canvasHeight / 2 + 50;
     const buttonWidth = 200;
     const buttonHeight = 60;
+    
+    // Check if start button is clicked
+    const startButtonX = config.canvasWidth / 2;
+    const startButtonY = config.canvasHeight / 2;
     
     if (mouseX >= startButtonX - buttonWidth/2 && 
         mouseX <= startButtonX + buttonWidth/2 && 
         mouseY >= startButtonY - buttonHeight/2 && 
         mouseY <= startButtonY + buttonHeight/2) {
       startGame();
+      return;
+    }
+    
+    // Check if settings button is clicked
+    const settingsButtonX = config.canvasWidth / 2;
+    const settingsButtonY = config.canvasHeight / 2 + 80;
+    
+    if (mouseX >= settingsButtonX - buttonWidth/2 && 
+        mouseX <= settingsButtonX + buttonWidth/2 && 
+        mouseY >= settingsButtonY - buttonHeight/2 && 
+        mouseY <= settingsButtonY + buttonHeight/2) {
+      gameState = GAME_STATE.SETTINGS;
+      return;
+    }
+  } else if (gameState === GAME_STATE.SETTINGS) {
+    // Handle win score selection
+    const scoreOptions = [10, 25, 50, 100];
+    const buttonWidth = 70;
+    const buttonSpacing = 20;
+    const totalWidth = scoreOptions.length * buttonWidth + (scoreOptions.length - 1) * buttonSpacing;
+    let startX = config.canvasWidth / 2 - totalWidth / 2;
+    const y = config.canvasHeight / 2;
+    
+    // Check if any score option is clicked
+    for (let i = 0; i < scoreOptions.length; i++) {
+      const score = scoreOptions[i];
+      const x = startX + i * (buttonWidth + buttonSpacing);
+      
+      if (mouseX >= x && mouseX <= x + buttonWidth && 
+          mouseY >= y - 20 && mouseY <= y + 20) {
+        selectedWinScore = score;
+        // Update the config win score
+        config.winScore = selectedWinScore;
+        return;
+      }
+    }
+    
+    // Check if back button is clicked
+    const backButtonX = config.canvasWidth / 2;
+    const backButtonY = config.canvasHeight / 2 + 100;
+    const buttonWidth2 = 200;
+    const buttonHeight2 = 60;
+    
+    if (mouseX >= backButtonX - buttonWidth2/2 && 
+        mouseX <= backButtonX + buttonWidth2/2 && 
+        mouseY >= backButtonY - buttonHeight2/2 && 
+        mouseY <= backButtonY + buttonHeight2/2) {
+      gameState = GAME_STATE.MENU;
+      return;
     }
   } else if (gameState === GAME_STATE.PAUSED) {
     // Check if resume button is clicked
@@ -224,6 +288,9 @@ function initGame() {
   scores = Array(config.snakeCount).fill(0);
   playerDirection = { x: 1, y: 0 };
   nextPlayerDirection = { x: 1, y: 0 };
+  
+  // Set the win score from the user selection
+  config.winScore = selectedWinScore;
   
   for (let i = 0; i < config.snakeCount; i++) {
     // Place snakes in different areas of the grid
@@ -643,22 +710,31 @@ function drawMenu() {
   fill(255);
   textSize(48);
   textAlign(CENTER, CENTER);
-  text("Snake Battle", config.canvasWidth / 2, config.canvasHeight / 3);
+  text("Snake Battle", config.canvasWidth / 2, config.canvasHeight / 4);
   
   // Draw subtitle
   textSize(24);
-  text("Control the red snake with arrow keys", config.canvasWidth / 2, config.canvasHeight / 3 + 50);
+  text("Control the red snake with arrow keys", config.canvasWidth / 2, config.canvasHeight / 4 + 50);
   
   // Draw additional info
   textSize(18);
-  text("Compete against the blue AI snake", config.canvasWidth / 2, config.canvasHeight / 3 + 85);
+  text("Compete against the blue AI snake", config.canvasWidth / 2, config.canvasHeight / 4 + 85);
   
   // Draw start button
-  drawButton("Start Game", config.canvasWidth / 2, config.canvasHeight / 2 + 50, 200, 60);
+  drawButton("Start Game", config.canvasWidth / 2, config.canvasHeight / 2, 200, 60);
+  
+  // Draw settings button
+  drawButton("Settings", config.canvasWidth / 2, config.canvasHeight / 2 + 80, 200, 60);
+  
+  // Draw win score info
+  textSize(16);
+  fill(76, 175, 80); // Green color for emphasis
+  text(`First to reach ${selectedWinScore} points wins!`, config.canvasWidth / 2, config.canvasHeight / 2 + 150);
   
   // Draw controls info
+  fill(255); // Reset to white
   textSize(16);
-  text("Controls: Arrow Keys to move, Space to pause", config.canvasWidth / 2, config.canvasHeight - 50);
+  text("Controls: Arrow Keys to move, Space to pause", config.canvasWidth / 2, config.canvasHeight - 20);
 }
 
 function drawPauseMenu() {
@@ -829,8 +905,8 @@ function drawWinScreen() {
 
 // Function to respawn the player
 function respawnPlayer() {
-  // Only respawn if the game is still playing and AI is alive
-  if (gameState === GAME_STATE.PLAYING && snakes[1] && snakes[1].alive) {
+  // Only respawn if the game is still playing and AI is alive and hasn't reached win score
+  if (gameState === GAME_STATE.PLAYING && snakes[1] && snakes[1].alive && scores[1] < selectedWinScore) {
     // Find a safe position for the player
     let validPosition = false;
     let x, y;
@@ -906,4 +982,51 @@ function showRespawnMessage() {
   setTimeout(() => {
     document.body.removeChild(messageDiv);
   }, 2000);
+}
+
+// Function to draw the settings screen
+function drawSettings() {
+  // Semi-transparent overlay
+  fill(0, 0, 0, 150);
+  rect(0, 0, config.canvasWidth, config.canvasHeight);
+  
+  // Draw title
+  fill(255);
+  textSize(48);
+  textAlign(CENTER, CENTER);
+  text("Settings", config.canvasWidth / 2, config.canvasHeight / 4);
+  
+  // Draw win score selector
+  textSize(24);
+  text("Points to Win:", config.canvasWidth / 2, config.canvasHeight / 2 - 50);
+  
+  // Draw score options
+  const scoreOptions = [10, 25, 50, 100];
+  const buttonWidth = 70;
+  const buttonSpacing = 20;
+  const totalWidth = scoreOptions.length * buttonWidth + (scoreOptions.length - 1) * buttonSpacing;
+  let startX = config.canvasWidth / 2 - totalWidth / 2;
+  
+  for (let i = 0; i < scoreOptions.length; i++) {
+    const score = scoreOptions[i];
+    const x = startX + i * (buttonWidth + buttonSpacing);
+    const y = config.canvasHeight / 2;
+    
+    // Highlight selected score
+    if (score === selectedWinScore) {
+      fill(76, 175, 80); // Green for selected
+    } else {
+      fill(50, 50, 50); // Dark gray for unselected
+    }
+    
+    rect(x, y - 20, buttonWidth, 40, 5);
+    
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(20);
+    text(score, x + buttonWidth / 2, y);
+  }
+  
+  // Draw back button
+  drawButton("Back to Menu", config.canvasWidth / 2, config.canvasHeight / 2 + 100, 200, 60);
 } 
