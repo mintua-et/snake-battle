@@ -15,6 +15,45 @@ const config = {
   winScore: 25      // Points needed to win the game
 };
 
+// Sound effects
+let sounds = {
+  eat: null,
+  die: null,
+  click: null,
+  win: null,
+  move: null
+};
+
+// Function to load and initialize sounds
+function initSounds() {
+  // Create audio elements
+  sounds.eat = new Audio('sounds/eat.mp3');
+  sounds.die = new Audio('sounds/die.ogg');
+  sounds.click = new Audio('sounds/click.wav');
+  sounds.win = new Audio('sounds/win.wav');
+  sounds.move = new Audio('sounds/move.mp3');
+  
+  // Set volume for each sound
+  Object.values(sounds).forEach(sound => {
+    if (sound) {
+      sound.volume = 0.5; // 50% volume
+    }
+  });
+}
+
+// Function to play a sound
+function playSound(soundName) {
+  if (sounds[soundName]) {
+    // Reset the sound to start if it's already playing
+    sounds[soundName].currentTime = 0;
+    // Play the sound
+    sounds[soundName].play().catch(error => {
+      // Ignore errors from browsers requiring user interaction first
+      console.log("Sound play prevented:", error);
+    });
+  }
+}
+
 // Game states
 const GAME_STATE = {
   MENU: 'menu',
@@ -48,13 +87,19 @@ function setup() {
   // Initialize game
   initGame();
   
+  // Initialize sounds
+  initSounds();
+  
   // Initialize external pause button
   externalPauseBtn = document.getElementById('external-pause-btn');
   pauseIcon = document.getElementById('pause-icon');
   playIcon = document.getElementById('play-icon');
   
   // Add click event listener to external pause button
-  externalPauseBtn.addEventListener('click', togglePause);
+  externalPauseBtn.addEventListener('click', () => {
+    playSound('click');
+    togglePause();
+  });
   
   // Initialize mobile direction buttons
   setupMobileControls();
@@ -70,21 +115,27 @@ function setupMobileControls() {
   
   // Helper function to handle both click and touch events
   const addButtonEvents = (button, directionFunction) => {
-    if (button) {
-      // Add click event
-      button.addEventListener('click', directionFunction);
-      
-      // Add touch events
-      button.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent default touch behavior
+    if (!button) return;
+    
+    // Function to handle both touch and click
+    const handlePress = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (gameState === GAME_STATE.PLAYING) {
+        playSound('click');
         directionFunction();
-      });
-      
-      // Prevent default behavior for all touch events
-      button.addEventListener('touchend', (e) => e.preventDefault());
-      button.addEventListener('touchmove', (e) => e.preventDefault());
-      button.addEventListener('touchcancel', (e) => e.preventDefault());
-    }
+      }
+    };
+    
+    // Add touch events with passive: false to ensure preventDefault works
+    button.addEventListener('touchstart', handlePress, { passive: false });
+    button.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    
+    // Also keep click events for hybrid devices
+    button.addEventListener('click', handlePress);
   };
   
   // Define direction functions
@@ -278,6 +329,9 @@ function keyPressed() {
 }
 
 function mousePressed() {
+  // Play click sound for any button press
+  playSound('click');
+  
   // Adjust mouse coordinates for canvas scaling
   const scaledMouseX = mouseX / canvasScale;
   const scaledMouseY = mouseY / canvasScale;
@@ -401,6 +455,7 @@ function mousePressed() {
 }
 
 function startGame() {
+  playSound('click');
   initGame();
   gameState = GAME_STATE.PLAYING;
   
@@ -523,6 +578,9 @@ function drawFood() {
 function updateSnakes() {
   // Update player direction
   if (snakes[0] && snakes[0].alive) {
+    if (playerDirection.x !== nextPlayerDirection.x || playerDirection.y !== nextPlayerDirection.y) {
+      playSound('move');
+    }
     playerDirection = nextPlayerDirection;
     snakes[0].direction = playerDirection;
   }
@@ -546,6 +604,11 @@ function updateSnakes() {
     if (head.x < 0 || head.x >= config.canvasWidth || 
         head.y < 0 || head.y >= config.canvasHeight) {
       snake.alive = false;
+      
+      // Play death sound if player died
+      if (snake.isPlayer) {
+        playSound('die');
+      }
       
       // If player died
       if (snake.isPlayer) {
@@ -585,6 +648,11 @@ function updateSnakes() {
     if (collision) {
       snake.alive = false;
       
+      // Play death sound if player died
+      if (snake.isPlayer) {
+        playSound('die');
+      }
+      
       // If player died
       if (snake.isPlayer) {
         // Check if AI is alive and hasn't reached win score
@@ -620,8 +688,14 @@ function updateSnakes() {
         foodEaten = true;
         addNewFood();
         
+        // Play eat sound if player ate food
+        if (snake.isPlayer) {
+          playSound('eat');
+        }
+        
         // Check if this snake has reached the win score
         if (scores[i] >= config.winScore) {
+          playSound('win');
           setTimeout(() => {
             gameState = GAME_STATE.WIN;
           }, 1000);
