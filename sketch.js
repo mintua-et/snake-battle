@@ -12,7 +12,16 @@ const config = {
   ],
   foodColor: [76, 175, 80], // Green
   backgroundColor: [18, 18, 18],
-  winScore: 25      // Points needed to win the game
+  winScore: 25,      // Points needed to win the game
+  wallColor: [128, 128, 128], // Gray color for walls
+  wallCount: 4,      // Number of straight walls
+  lShapeCount: 3     // Number of L-shaped obstacles
+};
+
+// Wall types
+const WALL_TYPE = {
+  STRAIGHT: 'straight',
+  L_SHAPE: 'l_shape'
 };
 
 // Sound effects
@@ -76,6 +85,7 @@ let canvasScale = 1; // Scale factor for responsive canvas
 let externalPauseBtn; // Reference to the external pause button
 let pauseIcon; // Reference to the pause icon
 let playIcon; // Reference to the play icon
+let walls = []; // Array to store wall positions
 
 function setup() {
   // Create a responsive canvas
@@ -234,6 +244,9 @@ function draw() {
   
   // Draw grid
   drawGrid();
+  
+  // Draw walls
+  drawWalls();
   
   switch (gameState) {
     case GAME_STATE.MENU:
@@ -476,10 +489,21 @@ function initGame() {
   // Set the win score from the user selection
   config.winScore = selectedWinScore;
   
+  // Generate walls first
+  generateWalls();
+  
+  // Then initialize snakes in valid positions
   for (let i = 0; i < config.snakeCount; i++) {
-    // Place snakes in different areas of the grid
-    const x = floor(random(2, config.canvasWidth / config.gridSize - 2)) * config.gridSize;
-    const y = floor(random(2, config.canvasHeight / config.gridSize - 2)) * config.gridSize;
+    let validPosition = false;
+    let x, y;
+    
+    while (!validPosition) {
+      x = floor(random(2, config.canvasWidth / config.gridSize - 2)) * config.gridSize;
+      y = floor(random(2, config.canvasHeight / config.gridSize - 2)) * config.gridSize;
+      
+      // Check if position is valid (not on a wall)
+      validPosition = !checkWallCollision(x, y);
+    }
     
     snakes.push({
       body: [{x, y}],
@@ -519,6 +543,11 @@ function addNewFood() {
     const x = floor(random(1, config.canvasWidth / config.gridSize - 1)) * config.gridSize;
     const y = floor(random(1, config.canvasHeight / config.gridSize - 1)) * config.gridSize;
     newFood = {x, y};
+    
+    // Check if position is valid (not on a wall)
+    if (checkWallCollision(newFood.x, newFood.y)) {
+      continue;
+    }
     
     // Check if position is valid (not on a snake)
     validPosition = true;
@@ -600,9 +629,10 @@ function updateSnakes() {
       y: snake.body[0].y + snake.direction.y * config.gridSize
     };
     
-    // Check for collisions with walls
+    // Check for collisions with walls or boundaries
     if (head.x < 0 || head.x >= config.canvasWidth || 
-        head.y < 0 || head.y >= config.canvasHeight) {
+        head.y < 0 || head.y >= config.canvasHeight ||
+        checkWallCollision(head.x, head.y)) {
       snake.alive = false;
       
       // Play death sound if player died
@@ -713,10 +743,6 @@ function updateSnakes() {
 }
 
 function decideDirection(snake, index) {
-  // Simple AI for snake movement
-  // 1. Try to find the nearest food
-  // 2. Try to avoid walls and other snakes
-  
   const head = snake.body[0];
   let nearestFood = null;
   let minDistance = Infinity;
@@ -750,9 +776,10 @@ function decideDirection(snake, index) {
     const newX = head.x + dir.x * config.gridSize;
     const newY = head.y + dir.y * config.gridSize;
     
-    // Check if this direction leads to a wall
+    // Check if this direction leads to a wall or boundary
     if (newX < 0 || newX >= config.canvasWidth || 
-        newY < 0 || newY >= config.canvasHeight) {
+        newY < 0 || newY >= config.canvasHeight ||
+        checkWallCollision(newX, newY)) {
       return -1000;
     }
     
@@ -1331,4 +1358,201 @@ function drawTouchControls() {
     config.canvasWidth - arrowSize * 0.5 - margin, config.canvasHeight - arrowSize * 2.5 - margin,
     config.canvasWidth - arrowSize * 0.5 - margin, config.canvasHeight - arrowSize * 1.5 - margin
   );
+}
+
+// Function to generate walls
+function generateWalls() {
+  walls = [];
+  
+  // Generate straight walls
+  for (let i = 0; i < config.wallCount; i++) {
+    generateWall(WALL_TYPE.STRAIGHT);
+  }
+  
+  // Generate L-shaped obstacles
+  for (let i = 0; i < config.lShapeCount; i++) {
+    generateWall(WALL_TYPE.L_SHAPE);
+  }
+}
+
+// Function to generate a single wall
+function generateWall(type) {
+  let validPosition = false;
+  let wall;
+  
+  while (!validPosition) {
+    // Random position that's not at the edges
+    const x = floor(random(2, config.canvasWidth / config.gridSize - 5)) * config.gridSize;
+    const y = floor(random(2, config.canvasHeight / config.gridSize - 5)) * config.gridSize;
+    
+    if (type === WALL_TYPE.STRAIGHT) {
+      // Random length between 2 and 4 cells
+      const length = floor(random(2, 5));
+      
+      // Random orientation (horizontal or vertical)
+      const isHorizontal = random() > 0.5;
+      
+      wall = {
+        x: x,
+        y: y,
+        length: length,
+        isHorizontal: isHorizontal,
+        type: WALL_TYPE.STRAIGHT
+      };
+    } else {
+      // For L-shape, we need two segments
+      const length1 = floor(random(2, 4));
+      const length2 = floor(random(2, 4));
+      
+      wall = {
+        x: x,
+        y: y,
+        length1: length1,
+        length2: length2,
+        type: WALL_TYPE.L_SHAPE
+      };
+    }
+    
+    // Check if wall position is valid
+    validPosition = isWallPositionValid(wall);
+  }
+  
+  walls.push(wall);
+}
+
+// Function to check if a wall position is valid
+function isWallPositionValid(wall) {
+  const points = getWallPoints(wall);
+  
+  // Check if wall is within bounds
+  for (const point of points) {
+    if (point.x < 0 || point.x >= config.canvasWidth ||
+        point.y < 0 || point.y >= config.canvasHeight) {
+      return false;
+    }
+  }
+  
+  // Check if wall overlaps with snakes
+  for (const snake of snakes) {
+    for (const segment of snake.body) {
+      if (points.some(p => p.x === segment.x && p.y === segment.y)) {
+        return false;
+      }
+    }
+  }
+  
+  // Check if wall overlaps with food
+  for (const food of foods) {
+    if (points.some(p => p.x === food.x && p.y === food.y)) {
+      return false;
+    }
+  }
+  
+  // Check if wall overlaps with other walls
+  for (const otherWall of walls) {
+    if (doWallsOverlap(points, getWallPoints(otherWall))) {
+      return false;
+    }
+  }
+  
+  // Check if wall blocks too much space (leave paths open)
+  const buffer = config.gridSize * 2;
+  for (const otherWall of walls) {
+    if (areWallsTooClose(points, getWallPoints(otherWall), buffer)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+// Function to check if a point is on a wall
+function isPointOnWall(x, y, wall) {
+  const points = getWallPoints(wall);
+  return points.some(p => p.x === x && p.y === y);
+}
+
+// Function to check if two walls overlap
+function doWallsOverlap(points1, points2) {
+  return points1.some(p1 => 
+    points2.some(p2 => p1.x === p2.x && p1.y === p2.y)
+  );
+}
+
+// Function to get all points occupied by a wall
+function getWallPoints(wall) {
+  const points = [];
+  
+  if (wall.type === WALL_TYPE.STRAIGHT) {
+    if (wall.isHorizontal) {
+      for (let i = 0; i < wall.length; i++) {
+        points.push({ x: wall.x + i * config.gridSize, y: wall.y });
+      }
+    } else {
+      for (let i = 0; i < wall.length; i++) {
+        points.push({ x: wall.x, y: wall.y + i * config.gridSize });
+      }
+    }
+  } else if (wall.type === WALL_TYPE.L_SHAPE) {
+    // First segment (horizontal)
+    for (let i = 0; i < wall.length1; i++) {
+      points.push({ x: wall.x + i * config.gridSize, y: wall.y });
+    }
+    // Second segment (vertical)
+    for (let i = 1; i < wall.length2; i++) {
+      points.push({ x: wall.x, y: wall.y + i * config.gridSize });
+    }
+  }
+  
+  return points;
+}
+
+// Function to check if walls are too close
+function areWallsTooClose(points1, points2, buffer) {
+  return points1.some(p1 => 
+    points2.some(p2 => {
+      const dx = abs(p1.x - p2.x);
+      const dy = abs(p1.y - p2.y);
+      return dx < buffer && dy < buffer;
+    })
+  );
+}
+
+// Function to draw walls
+function drawWalls() {
+  fill(config.wallColor);
+  noStroke();
+  
+  for (const wall of walls) {
+    if (wall.type === WALL_TYPE.STRAIGHT) {
+      if (wall.isHorizontal) {
+        for (let i = 0; i < wall.length; i++) {
+          rect(wall.x + i * config.gridSize, wall.y, config.gridSize, config.gridSize, 4);
+        }
+      } else {
+        for (let i = 0; i < wall.length; i++) {
+          rect(wall.x, wall.y + i * config.gridSize, config.gridSize, config.gridSize, 4);
+        }
+      }
+    } else if (wall.type === WALL_TYPE.L_SHAPE) {
+      // Draw first segment (horizontal)
+      for (let i = 0; i < wall.length1; i++) {
+        rect(wall.x + i * config.gridSize, wall.y, config.gridSize, config.gridSize, 4);
+      }
+      // Draw second segment (vertical)
+      for (let i = 1; i < wall.length2; i++) {
+        rect(wall.x, wall.y + i * config.gridSize, config.gridSize, config.gridSize, 4);
+      }
+    }
+  }
+}
+
+// Function to check if a point collides with any wall
+function checkWallCollision(x, y) {
+  for (const wall of walls) {
+    if (isPointOnWall(x, y, wall)) {
+      return true;
+    }
+  }
+  return false;
 } 
