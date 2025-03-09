@@ -233,14 +233,112 @@ function setupMobileControls() {
   addButtonEvents(btnRight, goRight);
 }
 
+// Function to set up menu controls
+function setupMenuControls() {
+  // Get menu buttons
+  const btnStart = document.getElementById('btn-start');
+  const btnLevels = document.getElementById('btn-levels');
+  const btnSettings = document.getElementById('btn-settings');
+  const menuControls = document.getElementById('menu-controls');
+  const externalPauseBtn = document.getElementById('external-pause-btn');
+  
+  // Helper function to handle button clicks
+  const handleButtonClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    playSound('click');
+  };
+  
+  // Add event listeners for menu buttons
+  if (btnStart) {
+    btnStart.addEventListener('click', (e) => {
+      handleButtonClick(e);
+      if (gameState === GAME_STATE.MENU) {
+        startGame();
+      }
+    });
+  }
+  
+  if (btnLevels) {
+    btnLevels.addEventListener('click', (e) => {
+      handleButtonClick(e);
+      if (gameState === GAME_STATE.MENU) {
+        gameState = GAME_STATE.LEVELS;
+      }
+    });
+  }
+  
+  if (btnSettings) {
+    btnSettings.addEventListener('click', (e) => {
+      handleButtonClick(e);
+      if (gameState === GAME_STATE.MENU) {
+        gameState = GAME_STATE.SETTINGS;
+      }
+    });
+  }
+  
+  // Function to update button visibility based on game state
+  const updateButtonsVisibility = () => {
+    if (menuControls) {
+      menuControls.style.display = gameState === GAME_STATE.MENU ? 'block' : 'none';
+    }
+    if (externalPauseBtn) {
+      externalPauseBtn.style.display = gameState === GAME_STATE.PLAYING ? 'flex' : 'none';
+    }
+  };
+  
+  // Add game state change observer
+  setInterval(updateButtonsVisibility, 100);
+}
+
 // Function to toggle pause state
 function togglePause() {
   if (gameState === GAME_STATE.PLAYING) {
     gameState = GAME_STATE.PAUSED;
     pauseIcon.style.display = 'none';
     playIcon.style.display = 'block';
+    // Hide canvas when paused
+    hideGameCanvas();
   } else if (gameState === GAME_STATE.PAUSED) {
     gameState = GAME_STATE.PLAYING;
+    pauseIcon.style.display = 'flex';
+    playIcon.style.display = 'none';
+    // Show canvas when unpaused
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer) {
+      canvasContainer.style.display = 'block';
+    }
+  }
+  
+  // Update mobile controls visibility
+  const mobileControls = document.getElementById('mobile-controls');
+  if (mobileControls) {
+    mobileControls.style.display = gameState === GAME_STATE.PLAYING ? 'block' : 'none';
+  }
+}
+
+function startGame() {
+  playSound('click');
+  
+  // Create canvas if it doesn't exist
+  if (!canvas) {
+    createGameCanvas();
+  } else {
+    // If canvas exists, just show it
+    const canvasContainer = document.getElementById('canvas-container');
+    if (canvasContainer) {
+      canvasContainer.style.display = 'block';
+    }
+  }
+  
+  initGame();
+  gameState = GAME_STATE.PLAYING;
+  
+  // Show scoreboard and pause button when game starts
+  updateScoreboardVisibility(true);
+  
+  // Set correct pause icon state
+  if (pauseIcon && playIcon) {
     pauseIcon.style.display = 'flex';
     playIcon.style.display = 'none';
   }
@@ -405,6 +503,30 @@ function mousePressed() {
   const scaledMouseX = mouseX / canvasScale;
   const scaledMouseY = mouseY / canvasScale;
   
+  if (gameState === GAME_STATE.PAUSED) {
+    const buttonWidth = 200;
+    const buttonHeight = 60;
+    
+    // Resume button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= config.canvasHeight/2 - buttonHeight/2 && 
+        scaledMouseY <= config.canvasHeight/2 + buttonHeight/2) {
+      togglePause();
+      return;
+    }
+    
+    // Main Menu button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= config.canvasHeight/2 + 80 - buttonHeight/2 && 
+        scaledMouseY <= config.canvasHeight/2 + 80 + buttonHeight/2) {
+      initGame();
+      gameState = GAME_STATE.MENU;
+      return;
+    }
+  }
+  
   if (gameState === GAME_STATE.MENU) {
     const buttonWidth = 200;
     const buttonHeight = 60;
@@ -531,18 +653,6 @@ function mousePressed() {
       gameState = GAME_STATE.MENU;
       return;
     }
-  }
-}
-
-function startGame() {
-  playSound('click');
-  initGame();
-  gameState = GAME_STATE.PLAYING;
-  
-  // Reset pause button state
-  if (pauseIcon && playIcon) {
-    pauseIcon.style.display = 'flex';
-    playIcon.style.display = 'none';
   }
 }
 
@@ -1156,37 +1266,62 @@ function drawButton(label, x, y, width, height) {
 function initScoreboard() {
   // Initialize main scoreboard (hidden but kept for compatibility)
   const scoresList = document.getElementById('scores');
-  scoresList.innerHTML = '';
-  
-  for (let i = 0; i < config.snakeCount; i++) {
-    const li = document.createElement('li');
-    li.className = `snake-${i}`;
-    li.textContent = i === 0 ? `You: 0` : `Snake ${i}: 0`;
-    scoresList.appendChild(li);
+  if (scoresList) {
+    scoresList.innerHTML = '';
   }
   
   // Initialize top-left scoreboard
   const topScoresList = document.getElementById('top-scores-list');
-  topScoresList.innerHTML = '';
+  if (topScoresList) {
+    // Create initial score elements
+    topScoresList.innerHTML = `
+      <li class="snake-0" data-dead="false">0</li>
+      <li class="snake-1" data-dead="false">0</li>
+    `;
+  }
   
-  for (let i = 0; i < config.snakeCount; i++) {
-    const li = document.createElement('li');
-    li.className = `snake-${i}`;
-    // Use shorter labels for the horizontal layout
-    li.textContent = i === 0 ? `YOU: 0` : `AI: 0`;
-    li.setAttribute('data-dead', 'false');
-    topScoresList.appendChild(li);
+  // Hide scoreboard and pause button initially
+  updateScoreboardVisibility(false);
+}
+
+// Function to update scoreboard visibility
+function updateScoreboardVisibility(show) {
+  const topScores = document.getElementById('top-scores');
+  const externalPauseBtn = document.getElementById('external-pause-btn');
+  const topScoresList = document.getElementById('top-scores-list');
+  
+  if (topScores) {
+    topScores.style.display = show ? 'flex' : 'none';
+    
+    // Add labels when showing scoreboard
+    if (show && topScoresList) {
+      const items = topScoresList.getElementsByTagName('li');
+      if (items[0]) {
+        items[0].innerHTML = `<span class="player-label">YOU</span> ${scores[0]}`;
+      }
+      if (items[1]) {
+        items[1].innerHTML = `<span class="player-label">AI</span> ${scores[1]}`;
+      }
+    }
+  }
+  
+  if (externalPauseBtn) {
+    externalPauseBtn.style.display = show ? 'flex' : 'none';
   }
 }
 
+// Function to update scoreboard
 function updateScoreboard() {
+  // Only update if game is in playing state
+  if (gameState !== GAME_STATE.PLAYING) return;
+  
   // Update main scoreboard
   const scoresList = document.getElementById('scores');
-  const items = scoresList.getElementsByTagName('li');
+  const items = scoresList ? scoresList.getElementsByTagName('li') : [];
   
   // Update top-left scoreboard
   const topScoresList = document.getElementById('top-scores-list');
-  const topItems = topScoresList.getElementsByTagName('li');
+  const topItems = topScoresList ? topScoresList.getElementsByTagName('li') : [];
   
   for (let i = 0; i < config.snakeCount; i++) {
     // Update main scoreboard items
@@ -1204,8 +1339,8 @@ function updateScoreboard() {
     
     // Update top-left scoreboard items
     if (topItems[i]) {
-      // Use more concise format for the horizontal layout
-      topItems[i].textContent = i === 0 ? `YOU ${scores[i]}` : `AI ${scores[i]}`;
+      const label = i === 0 ? 'YOU' : 'AI';
+      topItems[i].innerHTML = `<span class="player-label">${label}</span> ${scores[i]}`;
       
       // Add visual indicator if snake is dead
       if (!snakes[i].alive) {

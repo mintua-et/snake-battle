@@ -67,14 +67,35 @@ h1 {
 }
 
 #top-scores {
-    display: flex;
+    display: none; /* Hidden by default */
     justify-content: space-between;
     padding: 10px;
-    font-size: 18px;
+    font-size: 24px;
     font-weight: bold;
     color: white;
     width: 100%;
     max-width: 300px;
+}
+
+.score-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.player-label {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-bottom: -2px;
+}
+
+.player-label.player {
+    color: rgb(255, 82, 82); /* Red for player */
+}
+
+.player-label.ai {
+    color: rgb(33, 150, 243); /* Blue for AI */
 }
 
 #top-scores-list {
@@ -90,6 +111,12 @@ h1 {
     padding: 5px 15px;
     border-radius: 5px;
     background-color: rgba(0, 0, 0, 0.5);
+    min-width: 40px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
 }
 
 #top-scores-list li.snake-0 {
@@ -111,13 +138,13 @@ h1 {
 }
 
 #external-pause-btn {
+    display: none; /* Hidden by default */
     background-color: rgba(30, 30, 30, 0.8);
     border-radius: 8px;
     padding: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     width: auto;
     height: auto;
-    display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
