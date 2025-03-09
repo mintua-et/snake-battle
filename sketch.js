@@ -1297,10 +1297,10 @@ function updateScoreboardVisibility(show) {
     if (show && topScoresList) {
       const items = topScoresList.getElementsByTagName('li');
       if (items[0]) {
-        items[0].innerHTML = `<span class="player-label">YOU</span> ${scores[0]}`;
+        items[0].innerHTML = `<span class="player-label">YOU</span><span>${scores[0]}</span>`;
       }
       if (items[1]) {
-        items[1].innerHTML = `<span class="player-label">AI</span> ${scores[1]}`;
+        items[1].innerHTML = `<span class="player-label">AI</span><span>${scores[1]}</span>`;
       }
     }
   }
@@ -1340,7 +1340,7 @@ function updateScoreboard() {
     // Update top-left scoreboard items
     if (topItems[i]) {
       const label = i === 0 ? 'YOU' : 'AI';
-      topItems[i].innerHTML = `<span class="player-label">${label}</span> ${scores[i]}`;
+      topItems[i].innerHTML = `<span class="player-label">${label}</span><span>${scores[i]}</span>`;
       
       // Add visual indicator if snake is dead
       if (!snakes[i].alive) {
@@ -1436,7 +1436,7 @@ function drawSettings() {
   
   for (let i = 0; i < scoreOptions.length; i++) {
     const score = scoreOptions[i];
-    const x = startX + i * (scoreButtonWidth + scoreSpacing);
+    const x = startX + i * (scoreButtonWidth + scoreButtonSpacing);
     const y = config.canvasHeight / 2;
     
     // Highlight selected score

@@ -87,7 +87,7 @@ h1 {
 .player-label {
     font-size: 14px;
     opacity: 0.8;
-    margin-bottom: -2px;
+    margin-bottom: 0;
 }
 
 .player-label.player {
@@ -114,9 +114,9 @@ h1 {
     min-width: 40px;
     text-align: center;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
 }
 
 #top-scores-list li.snake-0 {
@@ -241,8 +241,12 @@ h2 {
     }
     
     #top-scores-list li {
-        font-size: 0.9rem;
-        padding: 3px;
+        padding: 5px 10px;
+        gap: 5px;
+    }
+    
+    .player-label {
+        font-size: 12px;
     }
     
     #external-pause-btn {
@@ -296,8 +300,12 @@ h2 {
     }
     
     #top-scores-list li {
-        font-size: 0.8rem;
-        padding: 2px;
+        padding: 3px 8px;
+        gap: 4px;
+    }
+    
+    .player-label {
+        font-size: 11px;
     }
     
     #external-pause-btn {
