@@ -15,8 +15,60 @@ const config = {
   winScore: 25,      // Points needed to win the game
   wallColor: [128, 128, 128], // Gray color for walls
   wallCount: 4,      // Number of straight walls
-  lShapeCount: 3     // Number of L-shaped obstacles
+  lShapeCount: 3,    // Number of L-shaped obstacles
+  difficulty: 'medium' // Default difficulty
 };
+
+// Difficulty settings
+const DIFFICULTY = {
+  easy: {
+    frameRate: 6,
+    wallCount: 2,
+    lShapeCount: 1,
+    foodCount: 12,
+    aiMistakeChance: 0.3, // 30% chance for AI to make a mistake
+  },
+  medium: {
+    frameRate: 7.5,
+    wallCount: 4,
+    lShapeCount: 3,
+    foodCount: 10,
+    aiMistakeChance: 0.15, // 15% chance for AI to make a mistake
+  },
+  hard: {
+    frameRate: 9,
+    wallCount: 6,
+    lShapeCount: 4,
+    foodCount: 8,
+    aiMistakeChance: 0.05, // 5% chance for AI to make a mistake
+  }
+};
+
+// Store user's location
+let userCity = 'Snake';
+
+// Function to get user's location and update the title
+async function updateGameTitle() {
+  try {
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+    userCity = data.city || 'Snake';
+    
+    // Update the title in the HTML
+    const titleElement = document.getElementById('game-title');
+    if (titleElement) {
+      titleElement.textContent = `${userCity} Snake Battle`;
+    }
+    
+    // Update the document title
+    document.title = `${userCity} Snake Battle`;
+  } catch (error) {
+    console.log('Could not fetch location:', error);
+  }
+}
+
+// Call this function when the game starts
+window.addEventListener('load', updateGameTitle);
 
 // Wall types
 const WALL_TYPE = {
@@ -70,7 +122,8 @@ const GAME_STATE = {
   PAUSED: 'paused',
   GAME_OVER: 'game_over',
   WIN: 'win',
-  SETTINGS: 'settings'
+  SETTINGS: 'settings',
+  LEVELS: 'levels'  // Add new state for levels
 };
 
 // Game state
@@ -245,7 +298,7 @@ function draw() {
   // Draw grid
   drawGrid();
   
-  // Draw walls
+  // Draw walls (they will only be visible during gameplay)
   drawWalls();
   
   switch (gameState) {
@@ -254,6 +307,9 @@ function draw() {
       break;
     case GAME_STATE.SETTINGS:
       drawSettings();
+      break;
+    case GAME_STATE.LEVELS:
+      drawLevels();
       break;
     case GAME_STATE.PLAYING:
       // Update and draw food
@@ -318,7 +374,7 @@ function keyPressed() {
       gameState = GAME_STATE.PLAYING;
       pauseIcon.style.display = 'flex';
       playIcon.style.display = 'none';
-    } else if (gameState === GAME_STATE.SETTINGS) {
+    } else if (gameState === GAME_STATE.SETTINGS || gameState === GAME_STATE.LEVELS) {
       gameState = GAME_STATE.MENU;
     } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN) {
       initGame();
@@ -328,7 +384,7 @@ function keyPressed() {
   
   // Handle escape key to go back to menu
   if (keyCode === 27) { // ESC key
-    if (gameState === GAME_STATE.SETTINGS) {
+    if (gameState === GAME_STATE.SETTINGS || gameState === GAME_STATE.LEVELS) {
       gameState = GAME_STATE.MENU;
     }
   }
@@ -349,51 +405,88 @@ function mousePressed() {
   const scaledMouseX = mouseX / canvasScale;
   const scaledMouseY = mouseY / canvasScale;
   
-  // Handle button clicks in menus
   if (gameState === GAME_STATE.MENU) {
     const buttonWidth = 200;
     const buttonHeight = 60;
-    const buttonY = config.canvasHeight / 2 + 30;
+    const buttonSpacing = 40;
+    const startY = (config.canvasHeight - (buttonHeight * 3 + buttonSpacing * 2 + 40)) / 2;
     
-    // Check if start button is clicked
-    const startButtonX = config.canvasWidth / 2;
-    const startButtonY = buttonY;
-    
-    if (scaledMouseX >= startButtonX - buttonWidth/2 && 
-        scaledMouseX <= startButtonX + buttonWidth/2 && 
-        scaledMouseY >= startButtonY - buttonHeight/2 && 
-        scaledMouseY <= startButtonY + buttonHeight/2) {
+    // Start Game button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= startY - buttonHeight/2 && 
+        scaledMouseY <= startY + buttonHeight/2) {
       startGame();
       return;
     }
     
-    // Check if settings button is clicked
-    const settingsButtonX = config.canvasWidth / 2;
-    const settingsButtonY = buttonY + 80;
+    // Levels button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= startY + buttonHeight + buttonSpacing - buttonHeight/2 && 
+        scaledMouseY <= startY + buttonHeight + buttonSpacing + buttonHeight/2) {
+      gameState = GAME_STATE.LEVELS;
+      return;
+    }
     
-    if (scaledMouseX >= settingsButtonX - buttonWidth/2 && 
-        scaledMouseX <= settingsButtonX + buttonWidth/2 && 
-        scaledMouseY >= settingsButtonY - buttonHeight/2 && 
-        scaledMouseY <= settingsButtonY + buttonHeight/2) {
+    // Settings button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= startY + (buttonHeight * 2) + (buttonSpacing * 2) - buttonHeight/2 && 
+        scaledMouseY <= startY + (buttonHeight * 2) + (buttonSpacing * 2) + buttonHeight/2) {
       gameState = GAME_STATE.SETTINGS;
       return;
     }
-  } else if (gameState === GAME_STATE.SETTINGS) {
+  }
+  
+  if (gameState === GAME_STATE.LEVELS) {
+    const difficulties = ['easy', 'medium', 'hard'];
+    const buttonWidth = 200;
+    const buttonHeight = 50; // Match the height from drawLevels
+    const buttonSpacing = 20; // Match the spacing from drawLevels
+    const startY = config.canvasHeight / 2 - buttonHeight - buttonSpacing;
+    
+    // Check difficulty buttons
+    for (let i = 0; i < difficulties.length; i++) {
+      const y = startY + i * (buttonHeight + buttonSpacing);
+      
+      if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+          scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+          scaledMouseY >= y - buttonHeight/2 && 
+          scaledMouseY <= y + buttonHeight/2) {
+        setDifficulty(difficulties[i]);
+        return;
+      }
+    }
+    
+    // Check back button - calculate position the same way as in drawLevels
+    const backButtonY = startY + (difficulties.length * (buttonHeight + buttonSpacing)) + buttonSpacing * 2;
+    
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= backButtonY - buttonHeight/2 && 
+        scaledMouseY <= backButtonY + buttonHeight/2) {
+      gameState = GAME_STATE.MENU;
+      return;
+    }
+  }
+  
+  if (gameState === GAME_STATE.SETTINGS) {
     // Handle win score selection
     const scoreOptions = [10, 25, 50, 100];
-    const buttonWidth = 70;
-    const buttonSpacing = 20;
-    const totalWidth = scoreOptions.length * buttonWidth + (scoreOptions.length - 1) * buttonSpacing;
-    let startX = config.canvasWidth / 2 - totalWidth / 2;
-    const y = config.canvasHeight / 2;
+    const scoreButtonWidth = 70;
+    const scoreButtonSpacing = 20;
+    const scoreTotalWidth = scoreOptions.length * scoreButtonWidth + (scoreOptions.length - 1) * scoreButtonSpacing;
+    const scoreStartX = config.canvasWidth / 2 - scoreTotalWidth / 2;
+    const scoreY = config.canvasHeight / 2;
     
     // Check if any score option is clicked
     for (let i = 0; i < scoreOptions.length; i++) {
       const score = scoreOptions[i];
-      const x = startX + i * (buttonWidth + buttonSpacing);
+      const x = scoreStartX + i * (scoreButtonWidth + scoreButtonSpacing);
       
-      if (scaledMouseX >= x && scaledMouseX <= x + buttonWidth && 
-          scaledMouseY >= y - 20 && scaledMouseY <= y + 20) {
+      if (scaledMouseX >= x && scaledMouseX <= x + scoreButtonWidth && 
+          scaledMouseY >= scoreY - 20 && scaledMouseY <= scoreY + 20) {
         selectedWinScore = score;
         // Update the config win score
         config.winScore = selectedWinScore;
@@ -403,66 +496,40 @@ function mousePressed() {
     
     // Check if back button is clicked
     const backButtonX = config.canvasWidth / 2;
-    const backButtonY = config.canvasHeight / 2 + 100;
-    const buttonWidth2 = 200;
-    const buttonHeight2 = 60;
+    const backButtonY = config.canvasHeight / 2 + 150;
+    const backButtonWidth = 200;
+    const backButtonHeight = 60;
     
-    if (scaledMouseX >= backButtonX - buttonWidth2/2 && 
-        scaledMouseX <= backButtonX + buttonWidth2/2 && 
-        scaledMouseY >= backButtonY - buttonHeight2/2 && 
-        scaledMouseY <= backButtonY + buttonHeight2/2) {
+    if (scaledMouseX >= backButtonX - backButtonWidth/2 && 
+        scaledMouseX <= backButtonX + backButtonWidth/2 && 
+        scaledMouseY >= backButtonY - backButtonHeight/2 && 
+        scaledMouseY <= backButtonY + backButtonHeight/2) {
       gameState = GAME_STATE.MENU;
       return;
     }
-  } else if (gameState === GAME_STATE.PAUSED) {
-    // Check if resume button is clicked
-    const resumeButtonX = config.canvasWidth / 2;
-    const resumeButtonY = config.canvasHeight / 2;
+  }
+  
+  if (gameState === GAME_STATE.WIN) {
     const buttonWidth = 200;
     const buttonHeight = 60;
     
-    if (scaledMouseX >= resumeButtonX - buttonWidth/2 && 
-        scaledMouseX <= resumeButtonX + buttonWidth/2 && 
-        scaledMouseY >= resumeButtonY - buttonHeight/2 && 
-        scaledMouseY <= resumeButtonY + buttonHeight/2) {
-      gameState = GAME_STATE.PLAYING;
-    }
-    
-    // Check if menu button is clicked
-    const menuButtonX = config.canvasWidth / 2;
-    const menuButtonY = config.canvasHeight / 2 + 80;
-    
-    if (scaledMouseX >= menuButtonX - buttonWidth/2 && 
-        scaledMouseX <= menuButtonX + buttonWidth/2 && 
-        scaledMouseY >= menuButtonY - buttonHeight/2 && 
-        scaledMouseY <= menuButtonY + buttonHeight/2) {
-      initGame();
-      gameState = GAME_STATE.MENU;
-    }
-  } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN) {
-    // Check if restart button is clicked
-    const restartButtonX = config.canvasWidth / 2;
-    const restartButtonY = config.canvasHeight / 2 + 50;
-    const buttonWidth = 200;
-    const buttonHeight = 60;
-    
-    if (scaledMouseX >= restartButtonX - buttonWidth/2 && 
-        scaledMouseX <= restartButtonX + buttonWidth/2 && 
-        scaledMouseY >= restartButtonY - buttonHeight/2 && 
-        scaledMouseY <= restartButtonY + buttonHeight/2) {
+    // Play Again button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= config.canvasHeight/2 + 50 - buttonHeight/2 && 
+        scaledMouseY <= config.canvasHeight/2 + 50 + buttonHeight/2) {
       startGame();
+      return;
     }
     
-    // Check if menu button is clicked
-    const menuButtonX = config.canvasWidth / 2;
-    const menuButtonY = config.canvasHeight / 2 + 130;
-    
-    if (scaledMouseX >= menuButtonX - buttonWidth/2 && 
-        scaledMouseX <= menuButtonX + buttonWidth/2 && 
-        scaledMouseY >= menuButtonY - buttonHeight/2 && 
-        scaledMouseY <= menuButtonY + buttonHeight/2) {
+    // Main Menu button
+    if (scaledMouseX >= config.canvasWidth/2 - buttonWidth/2 && 
+        scaledMouseX <= config.canvasWidth/2 + buttonWidth/2 && 
+        scaledMouseY >= config.canvasHeight/2 + 130 - buttonHeight/2 && 
+        scaledMouseY <= config.canvasHeight/2 + 130 + buttonHeight/2) {
       initGame();
       gameState = GAME_STATE.MENU;
+      return;
     }
   }
 }
@@ -642,18 +709,10 @@ function updateSnakes() {
       
       // If player died
       if (snake.isPlayer) {
-        // Check if AI is alive and hasn't reached win score
-        if (snakes[1] && snakes[1].alive && scores[1] < config.winScore) {
-          // Respawn player after a delay
-          setTimeout(() => {
-            respawnPlayer();
-          }, 2000);
-        } else {
-          // Otherwise game over
-          setTimeout(() => {
-            gameState = GAME_STATE.GAME_OVER;
-          }, 1000);
-        }
+        // Respawn player after a delay
+        setTimeout(() => {
+          respawnPlayer();
+        }, 2000);
       } else {
         // If AI snake died, respawn it after a delay
         setTimeout(() => {
@@ -685,18 +744,10 @@ function updateSnakes() {
       
       // If player died
       if (snake.isPlayer) {
-        // Check if AI is alive and hasn't reached win score
-        if (snakes[1] && snakes[1].alive && scores[1] < config.winScore) {
-          // Respawn player after a delay
-          setTimeout(() => {
-            respawnPlayer();
-          }, 2000);
-        } else {
-          // Otherwise game over
-          setTimeout(() => {
-            gameState = GAME_STATE.GAME_OVER;
-          }, 1000);
-        }
+        // Respawn player after a delay
+        setTimeout(() => {
+          respawnPlayer();
+        }, 2000);
       } else {
         // If AI snake died, respawn it after a delay
         setTimeout(() => {
@@ -808,8 +859,10 @@ function decideDirection(snake, index) {
     }
   }
   
-  // Add some randomness to make it more interesting
-  if (random() < 0.1) {
+  // Add difficulty-based randomness
+  const settings = DIFFICULTY[config.difficulty];
+  if (random() < settings.aiMistakeChance) {
+    // Make a random move instead of the best move
     bestIndex = floor(random(validDirections.length));
   }
   
@@ -822,10 +875,69 @@ function decideDirection(snake, index) {
   }
 }
 
+// Function to respawn the player
+function respawnPlayer() {
+  // Only respawn if no one has reached the win score yet
+  if (gameState === GAME_STATE.PLAYING && scores[1] < config.winScore) {
+    // Find a safe position for the player
+    let validPosition = false;
+    let x, y;
+    
+    while (!validPosition) {
+      x = floor(random(2, config.canvasWidth / config.gridSize - 2)) * config.gridSize;
+      y = floor(random(2, config.canvasHeight / config.gridSize - 2)) * config.gridSize;
+      
+      // Check if position is not on AI snake
+      validPosition = true;
+      if (snakes[1] && snakes[1].alive) {
+        for (const segment of snakes[1].body) {
+          if (segment.x === x && segment.y === y) {
+            validPosition = false;
+            break;
+          }
+        }
+      }
+      
+      // Check if position is not on food
+      if (validPosition) {
+        for (const food of foods) {
+          if (food.x === x && food.y === y) {
+            validPosition = false;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Reset the player snake
+    snakes[0] = {
+      body: [{x, y}],
+      direction: { x: 1, y: 0 },
+      color: config.snakeColors[0],
+      alive: true,
+      id: 0,
+      isPlayer: true
+    };
+    
+    // Reset player direction
+    playerDirection = { x: 1, y: 0 };
+    nextPlayerDirection = { x: 1, y: 0 };
+    
+    // Reset player score
+    scores[0] = 0;
+    
+    // Update scoreboard
+    updateScoreboard();
+    
+    // Show respawn message
+    showRespawnMessage();
+  }
+}
+
 // Function to respawn the AI snake
 function respawnAISnake() {
-  // Only respawn if the game is still playing and player is alive
-  if (gameState === GAME_STATE.PLAYING && snakes[0] && snakes[0].alive) {
+  // Only respawn if no one has reached the win score yet
+  if (gameState === GAME_STATE.PLAYING && scores[0] < config.winScore) {
     // Find a safe position for the new snake
     let validPosition = false;
     let x, y;
@@ -836,10 +948,12 @@ function respawnAISnake() {
       
       // Check if position is not on player snake
       validPosition = true;
-      for (const segment of snakes[0].body) {
-        if (segment.x === x && segment.y === y) {
-          validPosition = false;
-          break;
+      if (snakes[0] && snakes[0].alive) {
+        for (const segment of snakes[0].body) {
+          if (segment.x === x && segment.y === y) {
+            validPosition = false;
+            break;
+          }
         }
       }
       
@@ -887,6 +1001,12 @@ function drawSnakes() {
         // Draw head
         noStroke();
         rect(segment.x, segment.y, config.gridSize, config.gridSize, 5);
+        
+        // Draw score above head
+        fill(255);
+        textSize(16);
+        textAlign(CENTER, BOTTOM);
+        text(scores[i].toString(), segment.x + config.gridSize/2, segment.y - 5);
         
         // Draw eyes
         fill(0);
@@ -936,38 +1056,38 @@ function drawSnakes() {
 }
 
 function drawMenu() {
-  // Draw title
-  fill(255);
-  textSize(48);
-  textAlign(CENTER, CENTER);
-  text("Snake Battle", config.canvasWidth / 2, config.canvasHeight / 4);
+  // Calculate the total height of all elements
+  const buttonHeight = 60;
+  const buttonSpacing = 40; // Reduced spacing to fit three buttons
+  const textSpacing = 40;
+  const totalHeight = buttonHeight * 3 + buttonSpacing * 2 + textSpacing;
   
-  // Draw subtitle
-  textSize(24);
-  text("Control the red snake with arrow keys", config.canvasWidth / 2, config.canvasHeight / 4 + 50);
-  
-  // Draw additional info
-  textSize(18);
-  text("Compete against the blue AI snake", config.canvasWidth / 2, config.canvasHeight / 4 + 85);
-  
-  // Add more space before the start button
-  const buttonY = config.canvasHeight / 2 + 30;
+  // Calculate starting Y position to center everything
+  const startY = (config.canvasHeight - totalHeight) / 2;
   
   // Draw start button
-  drawButton("Start Game", config.canvasWidth / 2, buttonY, 200, 60);
+  drawButton("Start Game", config.canvasWidth / 2, startY, 200, buttonHeight);
+  
+  // Draw levels button
+  drawButton("Levels", config.canvasWidth / 2, startY + buttonHeight + buttonSpacing, 200, buttonHeight);
   
   // Draw settings button
-  drawButton("Settings", config.canvasWidth / 2, buttonY + 80, 200, 60);
+  drawButton("Settings", config.canvasWidth / 2, startY + (buttonHeight * 2) + (buttonSpacing * 2), 200, buttonHeight);
   
   // Draw win score info
   textSize(16);
   fill(76, 175, 80); // Green color for emphasis
-  text(`First to reach ${selectedWinScore} points wins!`, config.canvasWidth / 2, buttonY + 150);
+  textAlign(CENTER, CENTER);
+  text(`First to reach ${selectedWinScore} points wins!`, 
+       config.canvasWidth / 2, 
+       startY + (buttonHeight * 3) + (buttonSpacing * 2) + textSpacing);
   
-  // Draw controls info
+  // Draw controls info at the bottom
   fill(255); // Reset to white
   textSize(16);
-  text("Controls: Arrow Keys to move, Space to pause", config.canvasWidth / 2, config.canvasHeight - 20);
+  text("Controls: Arrow Keys to move, Space to pause", 
+       config.canvasWidth / 2, 
+       config.canvasHeight - 20);
 }
 
 function drawPauseMenu() {
@@ -1053,7 +1173,8 @@ function initScoreboard() {
     const li = document.createElement('li');
     li.className = `snake-${i}`;
     // Use shorter labels for the horizontal layout
-    li.textContent = i === 0 ? `You: 0` : `AI: 0`;
+    li.textContent = i === 0 ? `YOU: 0` : `AI: 0`;
+    li.setAttribute('data-dead', 'false');
     topScoresList.appendChild(li);
   }
 }
@@ -1070,7 +1191,7 @@ function updateScoreboard() {
   for (let i = 0; i < config.snakeCount; i++) {
     // Update main scoreboard items
     if (items[i]) {
-      items[i].textContent = i === 0 ? `You: ${scores[i]}` : `Snake ${i}: ${scores[i]}`;
+      items[i].textContent = i === 0 ? `You ${scores[i]}` : `Snake ${i} ${scores[i]}`;
       
       // Add visual indicator if snake is dead
       if (!snakes[i].alive) {
@@ -1084,14 +1205,13 @@ function updateScoreboard() {
     // Update top-left scoreboard items
     if (topItems[i]) {
       // Use more concise format for the horizontal layout
-      topItems[i].textContent = i === 0 ? `You: ${scores[i]}` : `AI: ${scores[i]}`;
+      topItems[i].textContent = i === 0 ? `YOU ${scores[i]}` : `AI ${scores[i]}`;
       
       // Add visual indicator if snake is dead
       if (!snakes[i].alive) {
-        topItems[i].textContent += ' †'; // Even more concise death indicator
-        topItems[i].style.opacity = '0.5';
+        topItems[i].setAttribute('data-dead', 'true');
       } else {
-        topItems[i].style.opacity = '1';
+        topItems[i].setAttribute('data-dead', 'false');
       }
     }
   }
@@ -1130,63 +1250,6 @@ function drawWinScreen() {
   
   // Draw menu button
   drawButton("Main Menu", config.canvasWidth / 2, config.canvasHeight / 2 + 130, 200, 60);
-}
-
-// Function to respawn the player
-function respawnPlayer() {
-  // Only respawn if the game is still playing and AI is alive and hasn't reached win score
-  if (gameState === GAME_STATE.PLAYING && snakes[1] && snakes[1].alive && scores[1] < selectedWinScore) {
-    // Find a safe position for the player
-    let validPosition = false;
-    let x, y;
-    
-    while (!validPosition) {
-      x = floor(random(2, config.canvasWidth / config.gridSize - 2)) * config.gridSize;
-      y = floor(random(2, config.canvasHeight / config.gridSize - 2)) * config.gridSize;
-      
-      // Check if position is not on AI snake
-      validPosition = true;
-      for (const segment of snakes[1].body) {
-        if (segment.x === x && segment.y === y) {
-          validPosition = false;
-          break;
-        }
-      }
-      
-      // Check if position is not on food
-      if (validPosition) {
-        for (const food of foods) {
-          if (food.x === x && food.y === y) {
-            validPosition = false;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Reset the player snake
-    snakes[0] = {
-      body: [{x, y}],
-      direction: { x: 1, y: 0 },
-      color: config.snakeColors[0],
-      alive: true,
-      id: 0,
-      isPlayer: true
-    };
-    
-    // Reset player direction
-    playerDirection = { x: 1, y: 0 };
-    nextPlayerDirection = { x: 1, y: 0 };
-    
-    // Reset player score
-    scores[0] = 0;
-    
-    // Update scoreboard
-    updateScoreboard();
-    
-    // Show respawn message
-    showRespawnMessage();
-  }
 }
 
 // Function to show a temporary respawn message
@@ -1231,14 +1294,14 @@ function drawSettings() {
   
   // Draw score options
   const scoreOptions = [10, 25, 50, 100];
-  const buttonWidth = 70;
-  const buttonSpacing = 20;
-  const totalWidth = scoreOptions.length * buttonWidth + (scoreOptions.length - 1) * buttonSpacing;
-  let startX = config.canvasWidth / 2 - totalWidth / 2;
+  const scoreButtonWidth = 70;
+  const scoreSpacing = 20;
+  const scoreTotalWidth = scoreOptions.length * scoreButtonWidth + (scoreOptions.length - 1) * scoreSpacing;
+  const startX = config.canvasWidth / 2 - scoreTotalWidth / 2;
   
   for (let i = 0; i < scoreOptions.length; i++) {
     const score = scoreOptions[i];
-    const x = startX + i * (buttonWidth + buttonSpacing);
+    const x = startX + i * (scoreButtonWidth + scoreSpacing);
     const y = config.canvasHeight / 2;
     
     // Highlight selected score
@@ -1248,16 +1311,59 @@ function drawSettings() {
       fill(50, 50, 50); // Dark gray for unselected
     }
     
-    rect(x, y - 20, buttonWidth, 40, 5);
+    rect(x, y - 20, scoreButtonWidth, 40, 5);
     
     fill(255);
     textAlign(CENTER, CENTER);
     textSize(20);
-    text(score, x + buttonWidth / 2, y);
+    text(score, x + scoreButtonWidth / 2, y);
   }
   
   // Draw back button
-  drawButton("Back to Menu", config.canvasWidth / 2, config.canvasHeight / 2 + 100, 200, 60);
+  drawButton("Back to Menu", config.canvasWidth / 2, config.canvasHeight / 2 + 150, 200, 60);
+}
+
+// Function to draw the levels screen
+function drawLevels() {
+  // Semi-transparent overlay
+  fill(0, 0, 0, 150);
+  rect(0, 0, config.canvasWidth, config.canvasHeight);
+  
+  // Draw title
+  fill(255);
+  textSize(48);
+  textAlign(CENTER, CENTER);
+  text("Select Level", config.canvasWidth / 2, config.canvasHeight / 4);
+  
+  // Draw difficulty options
+  const difficulties = ['easy', 'medium', 'hard'];
+  const buttonWidth = 200;
+  const buttonHeight = 50; // Reduced from 60 to 50
+  const buttonSpacing = 20; // Reduced from 40 to 20
+  const startY = config.canvasHeight / 2 - buttonHeight - buttonSpacing;
+  
+  for (let i = 0; i < difficulties.length; i++) {
+    const diff = difficulties[i];
+    const y = startY + i * (buttonHeight + buttonSpacing);
+    
+    // Highlight selected difficulty
+    if (diff === config.difficulty) {
+      fill(76, 175, 80); // Green for selected
+    } else {
+      fill(50, 50, 50); // Dark gray for unselected
+    }
+    
+    rect(config.canvasWidth / 2 - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 5);
+    
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    text(diff.toUpperCase(), config.canvasWidth / 2, y);
+  }
+  
+  // Draw back button with some spacing from the difficulty buttons
+  const backButtonY = startY + (difficulties.length * (buttonHeight + buttonSpacing)) + buttonSpacing * 2;
+  drawButton("Back to Menu", config.canvasWidth / 2, backButtonY, 200, 50);
 }
 
 // Add touch controls for mobile devices
@@ -1520,6 +1626,11 @@ function areWallsTooClose(points1, points2, buffer) {
 
 // Function to draw walls
 function drawWalls() {
+  // Only draw walls during gameplay, pause, game over, or win states
+  if (gameState === GAME_STATE.MENU || gameState === GAME_STATE.SETTINGS) {
+    return;
+  }
+  
   fill(config.wallColor);
   noStroke();
   
@@ -1555,4 +1666,24 @@ function checkWallCollision(x, y) {
     }
   }
   return false;
+}
+
+// Function to set difficulty
+function setDifficulty(level) {
+  config.difficulty = level;
+  const settings = DIFFICULTY[level];
+  
+  // Update game settings
+  config.frameRate = settings.frameRate;
+  config.wallCount = settings.wallCount;
+  config.lShapeCount = settings.lShapeCount;
+  config.foodCount = settings.foodCount;
+  
+  // Update frame rate
+  frameRate(config.frameRate);
+  
+  // Restart game if it's already running
+  if (gameState === GAME_STATE.PLAYING) {
+    initGame();
+  }
 } 

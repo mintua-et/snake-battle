@@ -67,26 +67,47 @@ h1 {
 }
 
 #top-scores {
-    background-color: rgba(30, 30, 30, 0.8);
-    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
     padding: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    min-width: 120px;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    width: 100%;
+    max-width: 300px;
 }
 
 #top-scores-list {
     display: flex;
-    flex-direction: row;
     justify-content: space-between;
-    gap: 15px;
+    width: 100%;
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 #top-scores-list li {
-    margin: 0;
-    padding: 5px;
+    padding: 5px 15px;
     border-radius: 5px;
-    font-size: 1rem;
-    font-weight: bold;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+#top-scores-list li.snake-0 {
+    color: rgb(255, 82, 82); /* Red for player */
+}
+
+#top-scores-list li.snake-1 {
+    color: rgb(33, 150, 243); /* Blue for AI */
+}
+
+/* Add separator between scores */
+#top-scores-list li:first-child {
+    margin-right: 20px;
+}
+
+/* Style for dead state */
+#top-scores-list li[data-dead="true"] {
+    opacity: 0.5;
 }
 
 #external-pause-btn {
